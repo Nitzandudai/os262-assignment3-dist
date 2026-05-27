@@ -341,11 +341,30 @@ void
 uvmclear(pagetable_t pagetable, uint64 va)
 {
   pte_t *pte;
-  
+
   pte = walk(pagetable, va, 0);
   if(pte == 0)
     panic("uvmclear");
   *pte &= ~PTE_U;
+}
+
+// Return 1 if every page in [va, va + npages*PGSIZE) is currently
+// unmapped (no valid PTE), 0 otherwise. va must be page-aligned.
+int
+range_unmapped(pagetable_t pagetable, uint64 va, uint64 npages)
+{
+  if((va % PGSIZE) != 0)
+    return 0;
+  for(uint64 i = 0; i < npages; i++){
+    uint64 a = va + i * PGSIZE;
+    if(a >= MAXVA)
+      return 0;
+    pte_t *pte = walk(pagetable, a, 0);
+    //because if it's valid it means it been mapped
+    if(pte && (*pte & PTE_V))
+      return 0;
+  }
+  return 1;
 }
 
 // Copy from kernel to user.

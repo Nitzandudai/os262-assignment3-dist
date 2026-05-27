@@ -548,6 +548,31 @@ void virtio_gpu_commit(void)
     gpu_transfer_flush();
 }
 
+int
+map_display_pages(pagetable_t pagetable, uint64 va)
+{
+    //loop because the pages in fb not necessarily contiguous, so we can't just call mappages() once on the whole range
+    for(int i = 0; i < FB_PAGES; i++){
+        if(fb[i] == 0){
+            if(i > 0)
+            //deleting pages we mapped so far
+                uvmunmap(pagetable, va, i, 0);
+            return -1;
+        }
+        if(mappages(pagetable,  //the pagetable to modify
+                    va + (uint64)i * PGSIZE,    //the virtual address to start mapping this page
+                    PGSIZE, 
+                    (uint64)fb[i], //the physical address of the page to map
+                    PTE_U | PTE_R | PTE_W) != 0)
+        { 
+            if(i > 0)
+                uvmunmap(pagetable, va, i, 0);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 // ── GPU daemon ────────────────────────────────────────────────────────
 // Kernel process started by kproc_create().  Wakes every DISPLAY_DAEMON_TICKS
 // timer ticks and issues TRANSFER_TO_HOST_2D + RESOURCE_FLUSH so that

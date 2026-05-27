@@ -111,10 +111,50 @@ sys_flip_display(void)
 //   Pass 0 to let the kernel auto-select the next available VA above p->sz.
 //
 // Returns the mapped virtual address on success, (uint64)-1 on failure.
-//
-// TODO: Students implement this syscall.
 uint64
 sys_map_display(void)
 {
-  return -1;
+  uint64 addr;
+  argaddr(0, &addr);
+
+  struct proc *p = myproc();
+  uint64 npages = GPU_FB_PAGES;
+  uint64 size = npages * PGSIZE;
+
+  // Only one display mapping per process.
+  if(p->display_map_npages > 0)
+    return -1;
+
+  uint64 va;
+  if(addr == 0){
+    uint64 top = PGROUNDDOWN(TRAPFRAME - PGSIZE);
+    if(top < size)
+      return -1;
+    va = top - size;
+    va = PGROUNDDOWN(va);
+    if(va < PGROUNDUP(p->sz))
+      return -1;
+  } else {
+    //we know we have doublr check but it's neccesary because the user could pass in an arbitrary address and we don't want to just trust it
+    if((addr % PGSIZE) != 0)
+      return -1;
+    // overflow check (like sum larger numbers in int)
+    if(addr + size < addr)
+      return -1;
+    if(addr + size > TRAPFRAME)
+      return -1;
+    va = addr;
+  }
+
+  // Make sure the target range doesn't collide with any existing mapping.
+  if(!range_unmapped(p->pagetable, va, npages))
+    return -1;
+
+  if(map_display_pages(p->pagetable, va) != 0)
+    return -1;
+
+  //we mapped from va to va+size, so we set the display_map_va and display_map_npages accordingly so we can unmap it later when the process exits or execs
+  p->display_map_va = va;
+  p->display_map_npages = npages;
+  return va;
 }

@@ -126,6 +126,14 @@ exec(char *path, char **argv)
   p->sz = sz;
   p->trapframe->epc = elf.entry;  // initial program counter = main
   p->trapframe->sp = sp; // initial stack pointer
+  // when we need to delete the memory of this process we also need to unmap
+  //but without free physical so do_free=0
+  //and reset the process fields
+  if(p->display_map_npages > 0){
+    uvmunmap(oldpagetable, p->display_map_va, p->display_map_npages, 0);
+    p->display_map_va = 0;
+    p->display_map_npages = 0;
+  }
   proc_freepagetable(oldpagetable, oldsz);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)

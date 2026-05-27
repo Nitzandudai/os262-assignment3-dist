@@ -104,4 +104,8 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // GPU framebuffer mapping (Task 1: sys_map_display)
+  uint64 display_map_va;       // VA where fb[] is mapped, 0 if none
+  int display_map_npages;      // number of pages mapped (0 if none)
 };

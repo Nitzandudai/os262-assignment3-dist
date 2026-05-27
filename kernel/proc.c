@@ -124,6 +124,8 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->display_map_va = 0;
+  p->display_map_npages = 0;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -158,6 +160,14 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  // when we need to delete the memory of this process we also need to unmap
+  //but without free physical so do_free=0
+  //and reset the process fields
+  if(p->pagetable && p->display_map_npages > 0){
+    uvmunmap(p->pagetable, p->display_map_va, p->display_map_npages, 0);
+    p->display_map_va = 0;
+    p->display_map_npages = 0;
+  }
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
