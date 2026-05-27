@@ -573,6 +573,28 @@ map_display_pages(pagetable_t pagetable, uint64 va)
     return 0;
 }
 
+int
+virtio_gpu_flip(pagetable_t pagetable, uint64 va)
+{
+    static struct virtio_gpu_mem_entry entries[FB_PAGES];
+
+    if((va % PGSIZE) != 0)
+        return -1;
+
+    for(int i = 0; i < FB_PAGES; i++){
+        uint64 pa = walkaddr(pagetable, va + (uint64)i * PGSIZE);
+        if(pa == 0)
+            return -1;
+        entries[i].addr = pa;
+        entries[i].length = PGSIZE;
+        entries[i].padding = 0;
+    }
+
+    gpu_cmd_detach();
+    gpu_cmd_attach(entries, FB_PAGES);
+    return 0;
+}
+
 // ── GPU daemon ────────────────────────────────────────────────────────
 // Kernel process started by kproc_create().  Wakes every DISPLAY_DAEMON_TICKS
 // timer ticks and issues TRANSFER_TO_HOST_2D + RESOURCE_FLUSH so that

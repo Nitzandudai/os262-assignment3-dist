@@ -96,12 +96,30 @@ sys_uptime(void)
 // that is exactly GPU_FB_PAGES (300) * PGSIZE bytes (i.e. 640x480x4 =
 // 1,228,800 bytes).  The buffer must already be fully mapped in the
 // calling process's address space.
-//
-// TODO: Students implement this syscall.
 uint64
 sys_flip_display(void)
 {
-  return -1;
+  uint64 buf;
+  argaddr(0, &buf);
+
+  if((buf % PGSIZE) != 0)
+    return -1;
+
+  uint64 size = (uint64)GPU_FB_PAGES * PGSIZE;
+
+  // check overflow
+  if(buf + size < buf)
+    return -1;
+
+  if(buf + size > TRAPFRAME)
+    return -1;
+
+  struct proc *p = myproc();
+
+  if(virtio_gpu_flip(p->pagetable, buf) != 0)
+    return -1;
+
+  return 0;
 }
 
 // sys_map_display: map the GPU's kernel framebuffer pages (fb[]) directly
