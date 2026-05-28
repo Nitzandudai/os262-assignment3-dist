@@ -134,6 +134,9 @@ exec(char *path, char **argv)
     p->display_map_va = 0;
     p->display_map_npages = 0;
   }
+  // If this process owned the GPU backing, preserve the last frame in
+  // the kernel fb[] before its old user pages are freed.
+  virtio_gpu_unflip_if_owner(p->pid);
   proc_freepagetable(oldpagetable, oldsz);
 
   return argc; // this ends up in a0, the first argument to main(argc, argv)
