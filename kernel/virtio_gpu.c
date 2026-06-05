@@ -147,10 +147,6 @@ static struct
 
 static void *fb[FB_PAGES];
 
-// pid of the process whose pages are currently attached as the GPU
-// backing (0 if the kernel fb[] is the current backing).
-static int flip_owner_pid = 0;
-
 // ── RESOURCE_ATTACH_BACKING command buffer (header + all entries) ────
 
 static struct
@@ -596,43 +592,7 @@ virtio_gpu_flip(pagetable_t pagetable, uint64 va)
 
     gpu_cmd_detach();
     gpu_cmd_attach(entries, FB_PAGES);
-    flip_owner_pid = myproc()->pid;
     return 0;
-}
-
-// If `pid` currently owns the GPU backing (i.e. its user pages were the
-// last ones attached via virtio_gpu_flip), copy those pages into the
-// kernel fb[] so the last drawn frame stays on screen, then restore
-// the kernel fb[] as the GPU backing.  Must be called BEFORE the
-// process's user pages are freed (i.e. before proc_freepagetable /
-// uvmfree).
-void
-virtio_gpu_unflip_if_owner(int pid)
-{
-    if(pid == 0 || pid != flip_owner_pid)
-        return;
-
-    // attach_buf.entries[] still holds the user physical addresses we
-    // attached on the last flip.  The kernel direct-maps physical RAM,
-    // so we can read them directly.  The pages haven't been freed yet.
-    for(int i = 0; i < FB_PAGES; i++){
-        if(fb[i] == 0 || attach_buf.entries[i].addr == 0)
-            continue;
-        memmove(fb[i], (void *)attach_buf.entries[i].addr, PGSIZE);
-    }
-
-    // Rebuild kernel backing entries and re-attach so the daemon's next
-    // commit reads from fb[] (which now holds the last user frame).
-    static struct virtio_gpu_mem_entry fb_entries[FB_PAGES];
-    for(int i = 0; i < FB_PAGES; i++){
-        fb_entries[i].addr = (uint64)fb[i];
-        fb_entries[i].length = PGSIZE;
-        fb_entries[i].padding = 0;
-    }
-    gpu_cmd_detach();
-    gpu_cmd_attach(fb_entries, FB_PAGES);
-
-    flip_owner_pid = 0;
 }
 
 // ── GPU daemon ────────────────────────────────────────────────────────

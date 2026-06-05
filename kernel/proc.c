@@ -168,11 +168,6 @@ freeproc(struct proc *p)
     p->display_map_va = 0;
     p->display_map_npages = 0;
   }
-  // If this process's pages are currently being shown by the GPU
-  // (via sys_flip_display), copy the last frame into the kernel fb[]
-  // and restore the kernel backing before we free the user pages.
-  if(p->pagetable && p->pid > 0)
-    virtio_gpu_unflip_if_owner(p->pid);
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
