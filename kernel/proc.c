@@ -376,6 +376,13 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  // adding sleep before exit to give the deamon a chance to display the last frame
+  acquire(&tickslock);
+  uint t0 = ticks;
+  while(ticks - t0 < 100)
+    sleep(&ticks, &tickslock);
+  release(&tickslock);
+
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
